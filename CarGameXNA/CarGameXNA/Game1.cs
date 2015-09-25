@@ -17,6 +17,9 @@ namespace CarGameXNA
     /// </summary>
     public class Game1 : Microsoft.Xna.Framework.Game
     {
+        int _total_frames = 0;
+        float _elapsed_time = 0.0f;
+        int _fps = 0;
         bool prevKeyGearUp, prevKeyGearDown;
         float power = 0;
         double powerUpdateTime=0;
@@ -25,7 +28,11 @@ namespace CarGameXNA
         SpriteBatch spriteBatch;
         Car playerCar;
         Texture2D playerCarTexture;
+        Texture2D playerCarWheel;
+        float wheelRotation = 0f;
+        Vector2 wheelPivot;
         Vector2 playerPosition = new Vector2(0f, 600f);
+        Vector2 wheelPosition = new Vector2(0f, 600f);
 
         public Game1()
         {
@@ -61,6 +68,8 @@ namespace CarGameXNA
             spriteBatch = new SpriteBatch(GraphicsDevice);
             playerCarTexture = Content.Load<Texture2D>("bilXNA");
             font = Content.Load<SpriteFont>("XNAFont");
+            playerCarWheel = Content.Load<Texture2D>("wheel");
+            wheelPivot = new Vector2(playerCarWheel.Width / 2, playerCarWheel.Height / 2);
             // TODO: use this.Content to load your game content here
         }
 
@@ -80,6 +89,13 @@ namespace CarGameXNA
         /// <param name="gameTime">Provides a snapshot of timing values.</param>
         protected override void Update(GameTime gameTime)
         {
+            _elapsed_time += (float)gameTime.ElapsedGameTime.TotalMilliseconds;
+            if (_elapsed_time  >= 1000.0f)
+            {
+                _fps = _total_frames;
+                _total_frames = 0;
+                _elapsed_time = 0;
+            }
             // Allows the game to exit
             if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed)
                 this.Exit();
@@ -116,6 +132,8 @@ namespace CarGameXNA
             else
                 playerCar.brakePosition -= 5;
 
+          
+
 
             if (Keyboard.GetState(PlayerIndex.One).GetPressedKeys().Contains<Keys>(Keys.Escape))
                 this.Exit();
@@ -123,8 +141,12 @@ namespace CarGameXNA
 
 
             playerCar.Calculate(gameTime.ElapsedGameTime.TotalMilliseconds);
-            playerPosition.X += (float)playerCar.GetSpeed() / 10f;
 
+#warning "Trial and error to find out values to divide speed with"
+            playerPosition.X += (float)playerCar.GetSpeed() / 5f;
+            wheelPosition = playerPosition + new Vector2(45, 85);
+            wheelRotation += (float)playerCar.GetSpeed() / 200f;
+              
             if (playerPosition.X > GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Width - playerCarTexture.Width)
                 playerPosition.X = 0;
             if (gameTime.TotalGameTime.TotalSeconds - powerUpdateTime > 0.1d)
@@ -143,12 +165,15 @@ namespace CarGameXNA
         /// <param name="gameTime">Provides a snapshot of timing values.</param>
         protected override void Draw(GameTime gameTime)
         {
+            _total_frames++;
             GraphicsDevice.Clear(Color.CornflowerBlue);
 
             // TODO: Add your drawing code here
             spriteBatch.Begin();
             spriteBatch.Draw(playerCarTexture, playerPosition, Color.White);
-            spriteBatch.DrawString(font, String.Format("Speed: {0}\nRpm: {1}\nGear: {2}\nPower(Hp): {3}", playerCar.GetSpeed(),playerCar.engine.currentRPM, playerCar.Gear,(int)power), Vector2.Zero, Color.Black);
+            spriteBatch.Draw(playerCarWheel, wheelPosition ,null, Color.White,wheelRotation,wheelPivot,1.0f,SpriteEffects.None,0f);
+            spriteBatch.Draw(playerCarWheel, wheelPosition+new Vector2(120,0), null, Color.White, wheelRotation, wheelPivot, 1.0f, SpriteEffects.None, 0f);
+            spriteBatch.DrawString(font, String.Format("Speed: {0}\nRpm: {1}\nGear: {2}\nPower(Hp): {3}\nFps: {4}", playerCar.GetSpeed(),playerCar.engine.currentRPM, playerCar.Gear,(int)power,_fps), Vector2.Zero, Color.Black);
             spriteBatch.End();
 
             base.Draw(gameTime);
