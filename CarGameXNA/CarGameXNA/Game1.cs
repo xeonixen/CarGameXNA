@@ -17,10 +17,8 @@ namespace CarGameXNA
     /// </summary>
     public class Game1 : Microsoft.Xna.Framework.Game
     {
-        float tempdivider = 0;
-        float groundY = 753f;
+        float groundY = 755f;
         float velY = 0f;
-
         int _total_frames = 0;
         float _elapsed_time = 0.0f;
         int _fps = 0;
@@ -30,15 +28,13 @@ namespace CarGameXNA
         SpriteFont font;
         GraphicsDeviceManager graphics;
         SpriteBatch spriteBatch;
-        Car playerCar;
-        Texture2D playerCarTexture;
-        Texture2D playerCarWheel;
         Scrolling scrolling1, scrolling2;
-        float wheelRotation = 0f, playerRotation = 0f;
-        Vector2 wheelPivot;
-        Vector2 playerPivot;
-        Vector2 playerPosition = new Vector2(100f, 1f);
-        Vector2 wheelPosition = new Vector2(100f, 1f);
+        float playerXPositionInWorld = 100f;
+        CarController playerCar;
+
+
+
+
 
         public Game1()
         {
@@ -47,7 +43,8 @@ namespace CarGameXNA
             graphics.PreferredBackBufferWidth = 1600;
             //graphics.IsFullScreen = true;
             Content.RootDirectory = "Content";
-            playerCar = new Car("Volvo", DriveTrainType.RearWheelDrive, 1400);
+
+
 
         }
 
@@ -60,6 +57,8 @@ namespace CarGameXNA
         protected override void Initialize()
         {
             // TODO: Add your initialization logic here
+            playerCar = new CarController();
+            playerCar.physics = new Car("Volvo", DriveTrainType.RearWheelDrive, 1400);
 
             base.Initialize();
         }
@@ -72,11 +71,10 @@ namespace CarGameXNA
         {
             // Create a new SpriteBatch, which can be used to draw textures.
             spriteBatch = new SpriteBatch(GraphicsDevice);
-            playerCarTexture = Content.Load<Texture2D>("bilXNA");
             font = Content.Load<SpriteFont>("XNAFont");
-            playerCarWheel = Content.Load<Texture2D>("wheel");
-            wheelPivot = new Vector2(playerCarWheel.Width / 2, playerCarWheel.Height / 2);
-            playerPivot = new Vector2(playerCarTexture.Width / 2, playerCarTexture.Height / 2);
+            playerCar.bodyTexture = Content.Load<Texture2D>("bilXNA");
+            playerCar.wheelTexture = Content.Load<Texture2D>("wheel");
+
             scrolling1 = new Scrolling(Content.Load<Texture2D>("background"), new Vector2(0, 0));
             scrolling2 = new Scrolling(Content.Load<Texture2D>("background"), new Vector2(scrolling1.texture.Width, 0));
 
@@ -99,6 +97,7 @@ namespace CarGameXNA
         /// <param name="gameTime">Provides a snapshot of timing values.</param>
         protected override void Update(GameTime gameTime)
         {
+            // Fps related
             _elapsed_time += (float)gameTime.ElapsedGameTime.TotalMilliseconds;
             if (_elapsed_time >= 1000.0f)
             {
@@ -106,6 +105,7 @@ namespace CarGameXNA
                 _total_frames = 0;
                 _elapsed_time = 0;
             }
+            // Keyboard related
             // Allows the game to exit
             if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed)
                 this.Exit();
@@ -113,7 +113,7 @@ namespace CarGameXNA
             {
                 if (!prevKeyGearUp)
                 {
-                    playerCar.GearUp();
+                    playerCar.physics.GearUp();
                     prevKeyGearUp = true;
                 }
 
@@ -123,7 +123,7 @@ namespace CarGameXNA
             {
                 if (!prevKeyGearDown)
                 {
-                    playerCar.GearDown();
+                    playerCar.physics.GearDown();
                     prevKeyGearDown = true;
                 }
 
@@ -132,65 +132,72 @@ namespace CarGameXNA
 
 
             if (Keyboard.GetState(PlayerIndex.One).GetPressedKeys().Contains<Keys>(Keys.Up))
-                playerCar.engine.throttlePosition += 5;
+                playerCar.physics.engine.throttlePosition += 5;
             else
-                playerCar.engine.throttlePosition -= 5;
+                playerCar.physics.engine.throttlePosition -= 5;
 
 
             if (Keyboard.GetState(PlayerIndex.One).GetPressedKeys().Contains<Keys>(Keys.Down))
-                playerCar.brakePosition += 5;
+                playerCar.physics.brakePosition += 5;
             else
-                playerCar.brakePosition -= 5;
+                playerCar.physics.brakePosition -= 5;
 
             if (Keyboard.GetState(PlayerIndex.One).GetPressedKeys().Contains<Keys>(Keys.R))
             {
-                playerCar.GearReverse(true);
+                playerCar.physics.GearReverse(true);
                 prevKeyReverse = true;
             }
             else
             {
                 if (prevKeyReverse)
+                {
                     prevKeyReverse = false;
+                    playerCar.physics.GearReverse(false);
+                }
+
             }
-            
+
+
             if (Keyboard.GetState(PlayerIndex.One).GetPressedKeys().Contains<Keys>(Keys.Escape))
                 this.Exit();
 
 
 
-            playerCar.Calculate(gameTime.ElapsedGameTime.TotalMilliseconds);
+
+            // Physics
+            playerCar.physics.Calculate(gameTime.ElapsedGameTime.TotalMilliseconds);
 
 #warning "Trial and error to find out values to divide speed with"
-            // playerPosition.X += (float)playerCar.GetSpeed() / 7f;
-            wheelPosition = playerPosition + new Vector2(45, 82);
-            wheelRotation += (float)playerCar.GetSpeed() / 140f;
+            playerCar.wheelRotation += (float)playerCar.physics.GetSpeed() / 140f;
 
-            if ((wheelPosition.Y + playerCarWheel.Height / 2 < groundY))
-                velY += 9.81f / 1000f;
-            else
-            {
-                velY = 0;
-                playerPosition.Y = groundY - 82;
-            }
+            //if (playerCar.position.Y < groundY)
+            velY += 9.81f * (float)gameTime.ElapsedGameTime.TotalMilliseconds / 1000f;
+            //else
+            //{
+            //    velY = 0;
+            //    playerCar.position.Y = groundY;
+            //}
 
-            tempdivider = (float)(gameTime.ElapsedGameTime.TotalMilliseconds / 1000d);
-            if (tempdivider != 0) playerPosition.Y += velY / tempdivider;
-
-
-            playerRotation = -(float)(playerCar.getForceOnCarX(gameTime.ElapsedGameTime.TotalMilliseconds) / (gameTime.ElapsedGameTime.TotalMilliseconds * 200f));
+            if (playerCar.wheel2pos.Y > groundY)
+                velY -= (9.81f * (float)gameTime.ElapsedGameTime.TotalMilliseconds / 1000f) * (playerCar.wheel2pos.Y - groundY) * 0.9f + (0.9f * velY);
+            if (playerCar.wheel1pos.Y > groundY)
+                velY -= (9.81f * (float)gameTime.ElapsedGameTime.TotalMilliseconds / 1000f) * (playerCar.wheel1pos.Y - groundY) * 0.9f + (0.9f * velY);
 
 
+            playerCar.position.Y += velY;
 
-            if (playerPosition.X > GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Width - playerCarTexture.Width)
-                playerPosition.X = 0;
+
+            playerCar.rotation = -(float)(playerCar.physics.getForceOnCarX(gameTime.ElapsedGameTime.TotalMilliseconds) / (gameTime.ElapsedGameTime.TotalMilliseconds * 120f));
+
+
+
             if (gameTime.TotalGameTime.TotalSeconds - powerUpdateTime > 0.1d)
             {
                 powerUpdateTime = gameTime.TotalGameTime.TotalSeconds;
-                power = (power + playerCar.engine.GetPowerHP()) / 2f;
+                power = (power + playerCar.physics.engine.GetPowerHP()) / 2f;
             }
 
-            // TODO: Add your update logic here
-            if (playerCar.GetSpeed() > 0)
+            if (playerCar.physics.GetSpeed() > 0)
             {
                 if (scrolling1.vector.X + scrolling1.texture.Width <= 0)
                     scrolling1.vector.X = scrolling2.vector.X + scrolling2.texture.Width;
@@ -207,8 +214,8 @@ namespace CarGameXNA
 
 
 
-            scrolling1.Update(-(float)playerCar.GetSpeed() / 7f);
-            scrolling2.Update(-(float)playerCar.GetSpeed() / 7f);
+            scrolling1.Update(-playerCar.physics.GetSpeed() / 7f);
+            scrolling2.Update(-playerCar.physics.GetSpeed() / 7f);
             base.Update(gameTime);
         }
 
@@ -225,14 +232,64 @@ namespace CarGameXNA
             spriteBatch.Begin();
             scrolling1.Draw(spriteBatch);
             scrolling2.Draw(spriteBatch);
-            spriteBatch.Draw(playerCarWheel, wheelPosition, null, Color.White, wheelRotation, wheelPivot, 1.0f, SpriteEffects.None, 0f);
-            spriteBatch.Draw(playerCarWheel, wheelPosition + new Vector2(120, 0), null, Color.White, wheelRotation, wheelPivot, 1.0f, SpriteEffects.None, 0f);
-            spriteBatch.Draw(playerCarTexture, wheelPosition + new Vector2(55, -38), null, Color.White, playerRotation, playerPivot, 1.0f, SpriteEffects.None, 0f);
-            //spriteBatch.Draw(playerCarTexture, playerPosition, Color.White);
-            spriteBatch.DrawString(font, String.Format("Speed: {0}\nRpm: {1}\nGear: {2}\nPower(Hp): {3}\nFps: {4}", (int)playerCar.GetSpeed(), playerCar.engine.currentRPM, playerCar.Gear, (int)power, _fps), Vector2.Zero, Color.Black);
+            playerCar.Draw(spriteBatch);
+            spriteBatch.DrawString(font, String.Format("Speed: {0}\nRpm: {1}\nGear: {2}\nPower(Hp): {3}\nFps: {4}\nPosition: {5}", (int)Math.Abs(playerCar.physics.GetSpeed()), playerCar.physics.engine.currentRPM, playerCar.physics.Gear, (int)power, _fps, (int)playerXPositionInWorld), Vector2.Zero, Color.Black);
             spriteBatch.End();
 
             base.Draw(gameTime);
+        }
+    }
+    public class PosRot
+    {
+        public float distance;
+        public float angle;
+        public PosRot()
+        {
+            distance = 0f;
+            angle = 0f;
+        }
+        public PosRot(float dist, float ang)
+        {
+            distance = dist;
+            angle = ang;
+        }
+    }
+    public class CarController
+    {
+        public Vector2 position;
+        public Vector2 wheel1pos, wheel2pos;
+        PosRot wheel1offset, wheel2offset;
+        public Texture2D bodyTexture, wheelTexture;
+        public float speed;
+        public float rotation, wheelRotation;
+        public Car physics;
+
+
+        public CarController()
+        {
+            physics = new Car();
+            speed = rotation = 0f;
+            position = new Vector2(500f, 50f);
+            wheel1pos = new Vector2(0f, 0f);
+            wheel2pos = new Vector2(0f, 0f);
+            wheel1offset = new PosRot(60f, 0.2f);
+            wheel2offset = new PosRot(-60f, -0.2f);
+            wheelRotation = 0f;
+
+        }
+        public void CalculatePositions()
+        {
+            wheel1pos = position + new Vector2(wheel1offset.distance * (float)Math.Cos(wheel1offset.angle), wheel1offset.distance * (float)Math.Sin(wheel1offset.angle));
+            wheel2pos = position + new Vector2(wheel2offset.distance * (float)Math.Cos(wheel2offset.angle), wheel2offset.distance * (float)Math.Sin(wheel2offset.angle));
+
+
+        }
+        public void Draw(SpriteBatch spriteBatch)
+        {
+            CalculatePositions();
+            spriteBatch.Draw(wheelTexture, wheel1pos, null, Color.White, wheelRotation, new Vector2(wheelTexture.Width / 2, wheelTexture.Height / 2), 1.0f, SpriteEffects.None, 0f);
+            spriteBatch.Draw(wheelTexture, wheel2pos, null, Color.White, wheelRotation, new Vector2(wheelTexture.Width / 2, wheelTexture.Height / 2), 1.0f, SpriteEffects.None, 0f);
+            spriteBatch.Draw(bodyTexture, position, null, Color.White, rotation, new Vector2(bodyTexture.Width / 2, bodyTexture.Height / 2), 1.0f, SpriteEffects.None, 0f);
         }
     }
 }
