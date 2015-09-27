@@ -31,7 +31,7 @@ namespace CarGameXNA
         Scrolling scrolling1, scrolling2;
         float playerXPositionInWorld = 100f;
         CarController playerCar;
-
+        float vel1 = 0, vel2 = 0;
 
 
 
@@ -58,7 +58,14 @@ namespace CarGameXNA
         {
             // TODO: Add your initialization logic here
             playerCar = new CarController();
-            playerCar.physics = new Car("Volvo", DriveTrainType.RearWheelDrive, 1400);
+            try
+            {
+                playerCar.physics = CarTools.LoadCarZip("car.dat");
+            }
+            catch (Exception)
+            {
+                playerCar.physics = new Car();
+            }
 
             base.Initialize();
         }
@@ -74,7 +81,6 @@ namespace CarGameXNA
             font = Content.Load<SpriteFont>("XNAFont");
             playerCar.bodyTexture = Content.Load<Texture2D>("bilXNA");
             playerCar.wheelTexture = Content.Load<Texture2D>("wheel");
-
             scrolling1 = new Scrolling(Content.Load<Texture2D>("background"), new Vector2(0, 0));
             scrolling2 = new Scrolling(Content.Load<Texture2D>("background"), new Vector2(scrolling1.texture.Width, 0));
 
@@ -170,14 +176,9 @@ namespace CarGameXNA
             playerCar.CalculatePositions();
 #warning "Trial and error to find out values to divide speed with"
             playerCar.wheelRotation += (float)playerCar.physics.GetSpeed() / 140f;
-
-            //if (playerCar.position.Y < groundY)
+            
             velY += 9.81f * (float)gameTime.ElapsedGameTime.TotalMilliseconds / 1000f;
-            //else
-            //{
-            //    velY = 0;
-            //    playerCar.position.Y = groundY;
-            //}
+       
             if (playerCar.wheel1pos.Y - groundY >= 0)
             {
                 playerCar.spring1 = -(playerCar.wheel1pos.Y - groundY);
@@ -190,45 +191,39 @@ namespace CarGameXNA
                 playerCar.spring2 = -(playerCar.wheel2pos.Y - groundY);
                 playerCar.wheel2pos.Y = groundY;
             }
-            else playerCar.spring2 = 0;
-
-            // if (playerCar.wheel2pos.Y > groundY)
-            // {
-            //     playerCar.wheel2pos.Y = groundY;
+            else
+                playerCar.spring2 = 0;
 
 
-            // }
-            // playerCar.spring2=
-            float vel1=0, vel2=0;
+
             if (playerCar.spring1 < 0)
-               vel1 = (9.81f * (float)gameTime.ElapsedGameTime.TotalMilliseconds / 1000f) * ((playerCar.wheel1pos.Y - playerCar.spring1) - groundY) * 0.2f + (0.1f * velY);
+                vel1 = (9.81f * (float)gameTime.ElapsedGameTime.TotalMilliseconds / 1000f) * ((playerCar.wheel1pos.Y - playerCar.spring1) - groundY) * 0.2f + (0.1f * velY);
+            else vel1 *= .5f;
             if (playerCar.spring2 < 0)
                 vel2 = (9.81f * (float)gameTime.ElapsedGameTime.TotalMilliseconds / 1000f) * ((playerCar.wheel2pos.Y - playerCar.spring2) - groundY) * 0.2f + (0.1f * velY);
+            else vel2 *= .5f;
 
             velY -= vel1 + vel2;
 
              if (vel1 > vel2)
             {
-                playerCar.rotation -= ((vel1 - vel2) / 8f);
+                playerCar.rotation -= ((vel1 - vel2) / 7f);
                
             }
             else
             {
-                playerCar.rotation += ((vel2 - vel1 )/ 8f);
+                playerCar.rotation += ((vel2 - vel1 )/ 7f);
                
             }
 
-            // velY -= (9.81f * (float)gameTime.ElapsedGameTime.TotalMilliseconds / 1000f) * (playerCar.wheel2pos.Y - groundY) * 0.9f + (0.9f * velY);
-            // if (playerCar.wheel1pos.Y > groundY)
-            //    velY -= (9.81f * (float)gameTime.ElapsedGameTime.TotalMilliseconds / 1000f) * (playerCar.wheel1pos.Y - groundY) * 0.9f + (0.9f * velY);
-
+          
 
             playerCar.position.Y += velY;
 
-            float force = (float)playerCar.physics.getForceOnCarX(gameTime.ElapsedGameTime.TotalMilliseconds)/ (float)(gameTime.ElapsedGameTime.TotalMilliseconds * 800f);
-            if (force > 100f || force < -100f) force = 0;
-            playerCar.rotation -= force;// -(float)(playerCar.physics.getForceOnCarX(gameTime.ElapsedGameTime.TotalMilliseconds) / (gameTime.ElapsedGameTime.TotalMilliseconds * 10000f));
+            float force = (float)playerCar.physics.getForceOnCarX(gameTime.ElapsedGameTime.TotalMilliseconds)/ (float)(gameTime.ElapsedGameTime.TotalMilliseconds * 1000f);
+            if (force > 1000f || force < -1000f) force = 0;
 
+            playerCar.rotation -= force;
 
 
             if (gameTime.TotalGameTime.TotalSeconds - powerUpdateTime > 0.1d)
@@ -273,7 +268,7 @@ namespace CarGameXNA
             scrolling1.Draw(spriteBatch);
             scrolling2.Draw(spriteBatch);
             playerCar.Draw(spriteBatch);
-            spriteBatch.DrawString(font, String.Format("Speed: {0}\nRpm: {1}\nGear: {2}\nPower(Hp): {3}\nFps: {4}\nPosition: {5}", (int)Math.Abs(playerCar.physics.GetSpeed()), playerCar.physics.engine.currentRPM, playerCar.physics.Gear, (int)power, _fps, (int)playerXPositionInWorld), Vector2.Zero, Color.Black);
+            spriteBatch.DrawString(font, String.Format("Speed: {0}\nRpm: {1}\nGear: {2}\nPower(Hp): {3}\nFps: {4}\nPosition: {5}\nCarName: ", (int)Math.Abs(playerCar.physics.GetSpeed()), playerCar.physics.engine.currentRPM, playerCar.physics.Gear, (int)power, _fps, (int)playerXPositionInWorld,playerCar.physics.Name), Vector2.Zero, Color.Black);
             spriteBatch.End();
 
             base.Draw(gameTime);
